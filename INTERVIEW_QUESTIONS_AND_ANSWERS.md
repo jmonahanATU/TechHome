@@ -1,16 +1,17 @@
 # TechHome - Interview Questions and Answers
 
 ## Table of Contents
-1. [General Project Overview](#general-project-overview)
-2. [Architecture & Tech Stack](#architecture--tech-stack)
-3. [Backend Development](#backend-development)
-4. [Frontend Development](#frontend-development)
-5. [Integration & Hardware](#integration--hardware)
-6. [Database & Data Management](#database--data-management)
-7. [Security & Best Practices](#security--best-practices)
-8. [Recent Features & Contributions](#recent-features--contributions)
-9. [Advanced Technical Questions](#advanced-technical-questions)
-10. [Soft Skills & Project Management](#soft-skills--project-management)
+1. [General Project Overview](#general-project-overview) (Q1-Q2)
+2. [Architecture & Tech Stack](#architecture--tech-stack) (Q3-Q7)
+3. [Backend Development](#backend-development) (Q8-Q12)
+4. [Frontend Development](#frontend-development) (Q13-Q15)
+5. [Integration & Hardware](#integration--hardware) (Q16-Q17)
+6. [Database & Data Management](#database--data-management) (Q18-Q20)
+7. [Security & Best Practices](#security--best-practices) (Q21-Q23)
+8. [Recent Features & Contributions](#recent-features--contributions) (Q24-Q25)
+9. [Advanced Technical Questions](#advanced-technical-questions) (Q26-Q29)
+10. [Soft Skills & Project Management](#soft-skills--project-management) (Q30-Q31)
+11. [Bonus: Behavioral Questions](#bonus-behavioral-questions) (Q32-Q34)
 
 ---
 
@@ -54,11 +55,51 @@
 - `automations` - Automation rules
 - `refresh_tokens` - JWT token management
 
+### Q7: Explain the pub/sub (publish/subscribe) architecture in your system.
+
+**Answer:** TechHome implements **multiple pub/sub patterns** throughout the architecture:
+
+**1. Custom Event Bus (Frontend)**
+Located in `TechHome/context/DeviceContext.js:8-25`, we implemented a lightweight observer pattern:
+```javascript
+const DeviceEvents = {
+    listeners: new Map(),
+    subscribe: (event, callback) => { /* ... */ },
+    emit: (event, data) => { /* ... */ }
+};
+```
+This allows components to subscribe to events like `DEVICE_TOGGLED` and `DEVICES_UPDATED`, enabling reactive UI updates without prop drilling.
+
+**2. React Context Provider Pattern**
+We use React's Context API as a hierarchical pub/sub system with `ThemeProvider > AuthProvider > DeviceProvider`. When state changes in a provider, all consuming components are automatically notified and re-render.
+
+**3. Adaptive Polling System**
+Since true real-time WebSockets aren't yet implemented, we use intelligent polling in `DeviceContext.js:239-269`:
+- **Immediate (500ms)**: For 3 seconds after user actions
+- **Regular (5s)**: For 30 seconds during active sessions
+- **Background (30s)**: During idle periods
+
+This adaptive approach reduces server load while maintaining responsiveness.
+
+**4. APScheduler (Backend Event System)**
+The `scheduler.py` implements time-based pub/sub for automations. Cron-like triggers publish events at scheduled times, which execute device commands asynchronously.
+
+**5. HTTP Interceptor Pattern**
+Axios response interceptors act as a pub/sub mechanism for authentication events. All HTTP requests subscribe to the interceptor, which handles 401 errors globally by refreshing tokens.
+
+**Current Limitations & Future Plans:**
+- Currently relies on polling instead of true real-time communication
+- Planned: WebSocket implementation using Flask-SocketIO for instant device state updates
+- Planned: Server-Sent Events (SSE) for one-way server-to-client notifications
+- Consideration: Redis pub/sub for multi-instance backend scalability
+
+**Why this matters:** The pub/sub architecture decouples components, making the system more maintainable and enabling features like multi-device synchronization and real-time notifications.
+
 ---
 
 ## BACKEND DEVELOPMENT
 
-### Q7: How does authentication work in your system?
+### Q8: How does authentication work in your system?
 
 **Answer:** We use JWT-based dual-token authentication implemented with Flask-JWT-Extended:
 - **Login:** User provides credentials, receives access token (1-hour expiry) and refresh token (30-day expiry)
@@ -69,7 +110,7 @@
 
 Located in `backend/routes/auth_routes.py`.
 
-### Q8: Describe the device management system.
+### Q9: Describe the device management system.
 
 **Answer:** The device management system (`backend/routes/device_routes.py` - 849 lines) provides:
 - **CRUD operations** for devices with room assignments
@@ -82,7 +123,7 @@ Located in `backend/routes/auth_routes.py`.
 
 Each operation is logged to `device_logs` with user attribution for analytics.
 
-### Q9: How does the automation system work?
+### Q10: How does the automation system work?
 
 **Answer:** The automation engine uses APScheduler for background task scheduling:
 - **Rule Creation:** Users define time-based or condition-based triggers with actions (toggle/turn_on/turn_off)
@@ -94,7 +135,7 @@ Each operation is logged to `device_logs` with user attribution for analytics.
 
 Located in `backend/routes/automation_routes.py` and `backend/scheduler.py`.
 
-### Q10: Explain the machine learning implementation.
+### Q11: Explain the machine learning implementation.
 
 **Answer:** We use **Random Forest Classifier** (scikit-learn) for device usage prediction:
 - **Features:** Hour of day, day of week, weekend flag, previous state
@@ -107,7 +148,7 @@ Located in `backend/routes/automation_routes.py` and `backend/scheduler.py`.
 
 Implemented in `backend/ml_models.py` (230 lines) and `backend/routes/ml_routes.py`.
 
-### Q11: What's the most complex part of your backend?
+### Q12: What's the most complex part of your backend?
 
 **Answer:** The analytics system (`backend/routes/analytics_routes.py` - **1,757 lines**) is the most complex:
 - **Usage Analytics:** Per-user, per-device, hourly/daily/weekly/monthly breakdowns with drill-down capability
@@ -121,7 +162,7 @@ Implemented in `backend/ml_models.py` (230 lines) and `backend/routes/ml_routes.
 
 ## FRONTEND DEVELOPMENT
 
-### Q12: How is state managed in the React Native app?
+### Q13: How is state managed in the React Native app?
 
 **Answer:** We use React Context API for global state:
 - **AuthContext:** Manages user authentication state, login/logout, token storage via AsyncStorage
@@ -133,7 +174,7 @@ Custom hooks abstract logic:
 - **useHomeAssistantDevices:** HA integration
 - **useLeonAssistant:** Voice control
 
-### Q13: Describe the navigation structure.
+### Q14: Describe the navigation structure.
 
 **Answer:** Hybrid navigation using React Navigation:
 - **Bottom Tab Navigator:** Main navigation (Home, Devices, Automations, Analytics, Settings)
@@ -142,7 +183,7 @@ Custom hooks abstract logic:
 
 Defined in `TechHome/App.js`.
 
-### Q14: What's the analytics dashboard like?
+### Q15: What's the analytics dashboard like?
 
 **Answer:** The `AnalyticsDashboardScreen.js` (110KB file) provides:
 - **Charts:** React Native Chart Kit for bar/line charts
@@ -157,7 +198,7 @@ Defined in `TechHome/App.js`.
 
 ## INTEGRATION & HARDWARE
 
-### Q15: How does Home Assistant integration work?
+### Q16: How does Home Assistant integration work?
 
 **Answer:** Integration via REST API (`backend/routes/home_assistant_routes.py`):
 - **Discovery:** Fetch all device states from HA API
@@ -169,7 +210,7 @@ Defined in `TechHome/App.js`.
 
 The Raspberry Pi 3 runs Home Assistant locally, communicating with actual smart devices (lights, thermostats) over the network.
 
-### Q16: What hardware have you integrated?
+### Q17: What hardware have you integrated?
 
 **Answer:** Raspberry Pi 3 running Home Assistant OS acts as the smart home hub. It:
 - Controls physical smart devices over local network (Zigbee, Z-Wave, WiFi)
@@ -184,7 +225,7 @@ Documented in `README_david_contribution.md`.
 
 ## DATABASE & DATA MANAGEMENT
 
-### Q17: How do you handle timezone issues?
+### Q18: How do you handle timezone issues?
 
 **Answer:** Comprehensive timezone strategy:
 - **Storage:** All timestamps stored in UTC in MongoDB
@@ -194,7 +235,7 @@ Documented in `README_david_contribution.md`.
 
 Critical for analytics accuracy in `backend/routes/analytics_routes.py`.
 
-### Q18: Explain your logging system.
+### Q19: Explain your logging system.
 
 **Answer:** The `device_logs` collection tracks all device interactions:
 ```javascript
@@ -215,7 +256,7 @@ Critical for analytics accuracy in `backend/routes/analytics_routes.py`.
 
 Implemented in `backend/models/device_log.py`.
 
-### Q19: How do you ensure data quality for ML models?
+### Q20: How do you ensure data quality for ML models?
 
 **Answer:** Several safeguards:
 - **Minimum Data:** Require 10+ historical entries before training
@@ -229,7 +270,7 @@ Implemented in `backend/models/device_log.py`.
 
 ## SECURITY & BEST PRACTICES
 
-### Q20: What security measures are implemented?
+### Q21: What security measures are implemented?
 
 **Answer:**
 - **Authentication:** JWT dual-token system with short-lived access tokens (1 hour)
@@ -240,7 +281,7 @@ Implemented in `backend/models/device_log.py`.
 - **CORS:** Configured for specific origins, not wildcard
 - **Environment Variables:** Sensitive config (MongoDB URI, JWT secret) in `.env`
 
-### Q21: How do you handle errors and edge cases?
+### Q22: How do you handle errors and edge cases?
 
 **Answer:**
 - **Network Timeouts:** Short timeouts (1-1.5s) for HA requests to prevent hanging
@@ -251,23 +292,69 @@ Implemented in `backend/models/device_log.py`.
 - **Device Health:** Automatic monitoring with warning/critical thresholds
 - **Graceful Degradation:** Features degrade gracefully if dependencies unavailable
 
-### Q22: What testing have you implemented?
+### Q23: Describe your testing strategy and implementation.
 
-**Answer:** Comprehensive test suite in `backend/tests/`:
-- **Unit Tests:** Individual function testing
-- **Integration Tests:** API endpoint testing
-- **Database Tests:** MongoDB operations with test isolation/cleanup
-- **ML Tests:** Model training and prediction validation
-- **Authentication Tests:** JWT flow verification
-- **Automation Tests:** Scheduler functionality
+**Answer:** We have a comprehensive testing suite using **pytest** with **72 test functions** across **8 test files** (1,154 lines of test code):
 
-Documented testing contributions in `README_david_contribution.md`.
+**Test Files in `backend/tests/`:**
+- `test_auth_routes.py` (189 lines) - 14 tests for authentication and user management
+- `test_automation_routes.py` (217 lines) - 17 tests for automation CRUD and scheduling
+- `test_device_routes.py` (144 lines) - 10 tests for device control and state management
+- `test_home_assistant_routes.py` (155 lines) - 9 tests for HA integration
+- `test_integration_flow.py` (151 lines) - End-to-end workflow tests
+- `test_ml_routes.py` (114 lines) - 6 tests for ML predictions and feedback
+- `test_room_routes.py` (109 lines) - 11 tests for room management
+- `test_device_logging.py` (75 lines) - Device action logging tests
+
+**Test Types:**
+1. **Unit Tests (Majority):** Test individual endpoints in isolation with mocked dependencies
+2. **Integration Tests:** 1 marked test (`@pytest.mark.integration`) for real HA API testing
+3. **E2E Flow Tests:** Complete user workflows (register → create automation → trigger)
+4. **Negative Tests:** 24 test functions specifically testing error conditions and edge cases
+
+**Testing Best Practices:**
+- **Fixtures:** Reusable `client` and `auth_headers` fixtures across all test files
+- **Auto-Cleanup:** `@pytest.fixture(autouse=True)` with yield pattern for setup/teardown
+- **Mock Isolation:** Using `unittest.mock.patch` for external HTTP requests (56 mock usages)
+- **Test Data Naming:** MOCK_ prefix convention enables pattern-based cleanup
+- **Real Database:** Tests use actual MongoDB (not mocked) to validate CRUD operations
+- **Assertions:** 129 total assertions including 62 HTTP status code checks
+- **Pytest Markers:** Custom markers for categorizing tests (integration, slow, etc.)
+
+**Example Test Pattern:**
+```python
+@pytest.fixture
+def auth_headers(client):
+    # Register and login test user
+    client.post('/api/auth/register', json={...})
+    response = client.post('/api/auth/login', json={...})
+    token = response.get_json()['access_token']
+    return {'Authorization': f'Bearer {token}'}
+
+def test_toggle_device(client, auth_headers):
+    response = client.post(f'/api/devices/{device_id}/toggle',
+                          headers=auth_headers)
+    assert response.status_code == 200
+```
+
+**Coverage Statistics:**
+- **Routes Tested:** 6 out of 7 route files (86%)
+- **Gap:** Analytics routes (1,757 lines) currently have no tests - identified improvement area
+- **Test-to-Code Ratio:** ~1:3 (excluding analytics)
+
+**Areas for Improvement:**
+- Add code coverage tracking (pytest-cov)
+- Implement CI/CD pipeline (GitHub Actions)
+- Create shared conftest.py to reduce fixture duplication
+- Add parametrized tests using `@pytest.mark.parametrize`
+- Write tests for analytics endpoints
+- Add performance/load testing
 
 ---
 
 ## RECENT FEATURES & CONTRIBUTIONS
 
-### Q23: What are the most recent features you added?
+### Q24: What are the most recent features you added?
 
 **Answer:** Based on recent commits:
 1. **User Engagement System:** Ranking with Bronze/Silver/Gold/Platinum badges based on device control frequency
@@ -278,7 +365,7 @@ Documented testing contributions in `README_david_contribution.md`.
 
 Commits show continuous improvement to analytics and user experience.
 
-### Q24: What challenges did you face and overcome?
+### Q25: What challenges did you face and overcome?
 
 **Answer:**
 1. **User Attribution for Logs:** Initially device endpoints didn't track users. Added JWT to log who performed actions for analytics.
@@ -291,7 +378,7 @@ Commits show continuous improvement to analytics and user experience.
 
 ## ADVANCED TECHNICAL QUESTIONS
 
-### Q25: How would you scale this system for 10,000 users?
+### Q26: How would you scale this system for 10,000 users?
 
 **Answer:**
 - **Database:** Add indexes on frequently queried fields (user_id, device_id, timestamp)
@@ -303,7 +390,7 @@ Commits show continuous improvement to analytics and user experience.
 - **CDN:** Serve static assets via CDN
 - **Microservices:** Split analytics, ML, and device control into separate services
 
-### Q26: Explain the API design philosophy.
+### Q27: Explain the API design philosophy.
 
 **Answer:** RESTful principles:
 - **Resource-Based URLs:** `/api/devices/:id`, `/api/rooms/:id`
@@ -313,7 +400,7 @@ Commits show continuous improvement to analytics and user experience.
 - **Stateless:** Each request contains all necessary authentication (JWT)
 - **Versioned:** `/api/v1/` prefix for future compatibility (not yet implemented)
 
-### Q27: How do you ensure data consistency between MongoDB and Home Assistant?
+### Q28: How do you ensure data consistency between MongoDB and Home Assistant?
 
 **Answer:**
 - **Single Source of Truth:** HA is authoritative for device states
@@ -323,7 +410,7 @@ Commits show continuous improvement to analytics and user experience.
 - **Reconciliation:** Manual refresh option for users
 - **State Validation:** Compare expected vs actual state after operations
 
-### Q28: Describe the ML model lifecycle.
+### Q29: Describe the ML model lifecycle.
 
 **Answer:**
 1. **Data Collection:** Device state changes logged to `device_history`
@@ -340,7 +427,7 @@ Located in `backend/ml_models.py`.
 
 ## SOFT SKILLS & PROJECT MANAGEMENT
 
-### Q29: How did you organize and prioritize features?
+### Q30: How did you organize and prioritize features?
 
 **Answer:** Looking at commit history:
 1. **Core Functionality First:** Authentication, device control, basic CRUD
@@ -350,7 +437,7 @@ Located in `backend/ml_models.py`.
 
 Clear progression from MVP to full-featured product.
 
-### Q30: What would you improve if you had more time?
+### Q31: What would you improve if you had more time?
 
 **Answer:**
 - **Real-time Updates:** WebSockets for live device state changes
@@ -373,6 +460,8 @@ Clear progression from MVP to full-featured product.
 - **Database:** 7 main collections (users, devices, rooms, automations, device_logs, device_history, refresh_tokens)
 - **ML:** Random Forest Classifier with 70% confidence threshold
 - **Authentication:** Dual-token JWT (1-hour access, 30-day refresh)
+- **Testing:** 72 test functions across 8 test files (1,154 lines of test code)
+- **Pub/Sub:** Custom event bus + adaptive polling (500ms-30s intervals)
 
 ### Tech Stack Summary
 - **Frontend:** React Native + Expo (~50.0.0)
@@ -385,31 +474,36 @@ Clear progression from MVP to full-featured product.
 ### Architecture Pattern
 - Three-tier: Mobile App → REST API → Database
 - Blueprint-based modular routing
-- Context API for state management
+- Context API for state management (pub/sub pattern)
 - Repository pattern for database operations
+- Adaptive polling for pseudo-real-time updates
+- APScheduler for time-based event automation
 
 ### Standout Features
-1. Machine learning usage prediction
+1. Machine learning usage prediction (Random Forest)
 2. Comprehensive analytics (1,757 lines!)
 3. Gamification with badges and streaks
-4. Device health monitoring
-5. Timezone-aware analytics
-6. Physical hardware integration
+4. Device health monitoring with error categorization
+5. Timezone-aware analytics (UTC → Europe/Dublin)
+6. Physical hardware integration (Raspberry Pi + Home Assistant)
 7. Voice assistant integration
+8. Custom event bus pub/sub architecture
+9. Adaptive polling system (reduces server load)
+10. Comprehensive testing suite (72 tests, 86% route coverage)
 
 ---
 
 ## BONUS: BEHAVIORAL QUESTIONS
 
-### Q31: Tell me about a time you had to debug a complex issue.
+### Q32: Tell me about a time you had to debug a complex issue.
 
 **Answer:** When implementing the analytics dashboard, we discovered that date ranges were showing incorrect data. Users selecting "last 7 days" were seeing data from different periods. After investigation, I found the issue was timezone mismatch - the backend stored timestamps in UTC but didn't convert user-selected dates from Europe/Dublin timezone. I implemented a comprehensive timezone strategy: all storage in UTC, conversion to local timezone only at presentation layer, and timezone-aware query construction. This required updating multiple endpoints in the 1,757-line analytics_routes.py file. The fix ensured data accuracy across all analytics features.
 
-### Q32: Describe a feature you're most proud of.
+### Q33: Describe a feature you're most proud of.
 
 **Answer:** The device health monitoring system. I noticed users struggled to identify problematic devices, so I built an automatic health scoring system based on error rates from device_logs. Devices are categorized as Healthy (<10% errors), Warning (10-20%), or Critical (>20%). I added automatic error categorization (timeout, connection, permission), contextual troubleshooting suggestions, and quick action buttons (Retry, Refresh, Ping, Reset). This transformed error handling from reactive (waiting for user complaints) to proactive (identifying issues automatically). It demonstrates my ability to identify user pain points and create elegant solutions.
 
-### Q33: How do you stay current with technology trends?
+### Q34: How do you stay current with technology trends?
 
 **Answer:** I actively practice by building projects like TechHome that incorporate modern technologies. For this project, I researched:
 - React Native and Expo for cross-platform development
@@ -428,15 +522,20 @@ I also follow the evolution of the smart home ecosystem, including Home Assistan
    - 1,757 lines (analytics)
    - 849 lines (device management)
    - 230 lines (ML models)
+   - 1,154 lines (test code)
+   - 72 test functions across 8 test files
    - 10+ entries needed for ML training
    - 70% confidence threshold
    - 1-hour access tokens, 30-day refresh tokens
+   - 500ms-30s adaptive polling intervals
 
 2. **Be Ready to Discuss Trade-offs:**
    - Why MongoDB over SQL? (Flexible schema for varying device attributes)
    - Why Flask over Django? (Lightweight, API-focused)
    - Why React Native over native? (Cross-platform efficiency)
    - Why Random Forest over neural networks? (Interpretability, smaller dataset)
+   - Why adaptive polling over WebSockets? (Simpler to implement, but planning WebSocket upgrade)
+   - Why pytest over unittest? (Better fixtures, cleaner syntax, powerful plugins)
 
 3. **Show Problem-Solving:**
    - Discuss specific challenges (timezone, user attribution, error detection)
@@ -448,10 +547,19 @@ I also follow the evolution of the smart home ecosystem, including Home Assistan
    - ML prediction with feedback loop
    - Comprehensive analytics (not just basic stats)
    - Gamification and user engagement
+   - **Pub/Sub architecture:** Custom event bus for reactive UI updates
+   - **Adaptive polling:** Intelligent polling that reduces server load (500ms → 5s → 30s)
+   - **Testing rigor:** 72 tests with 86% route coverage, fixtures, mocking, auto-cleanup
 
 5. **Know What You'd Improve:**
    - Shows self-awareness
    - Demonstrates forward thinking
-   - See Q30 for specific improvements
+   - See Q31 for specific improvements (WebSockets, CI/CD, etc.)
+
+6. **Master Common Interview Topics:**
+   - **Pub/Sub (Q7):** Be ready to explain the custom event bus, adaptive polling, and future WebSocket plans
+   - **Testing (Q23):** Discuss pytest, fixtures, mocking strategies, and the 86% route coverage (note: analytics routes need tests)
+   - **Architecture:** Three-tier with Blueprint pattern, Context API, and APScheduler
+   - **Scalability:** Can discuss database indexing, caching, load balancing (Q26)
 
 Good luck with your interview!
